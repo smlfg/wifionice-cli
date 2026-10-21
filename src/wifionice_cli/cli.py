@@ -70,10 +70,19 @@ def build_parser(json_mode: bool) -> ArgumentParser:
         help="portal reachable? session active? (CNA API, legacy fallback)",
     )
 
-    sub.add_parser(
+    p_speed = sub.add_parser(
         "speed",
         parents=[global_flags, config_flags],
-        help="train speed from the onboard ICE portal (only reachable on board)",
+        help="train speed in km/h from the onboard ICE portal (not a bandwidth test)",
+        description=(
+            "Report the train's current speed from GET {iceportal}/api1/rs/status. "
+            "This is onboard telemetry in km/h, not a download/upload bandwidth measurement."
+        ),
+    )
+    p_speed.add_argument(
+        "--bandwidth",
+        action="store_true",
+        help="not supported: speed is train speed (km/h), not link bandwidth",
     )
 
     sub.add_parser(
@@ -167,6 +176,12 @@ def _cmd_status(args, cfg, *, json_mode: bool) -> int:
 
 
 def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
+    if args.bandwidth:
+        raise CliError(
+            "speed reports train speed (km/h) from the onboard ICE portal, not a bandwidth test; "
+            "optional bandwidth measurement is not implemented",
+            code=ec.INPUT,
+        )
     client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
     payload = client.iceportal_status()
     if "speed" not in payload:
@@ -179,6 +194,7 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
     out = {
         "command": "speed",
         "iceportal_url": cfg.iceportal_url,
+        "measurement": "train_speed_kmh",
         "train_speed_kmh": speed,
         "servicelevel": payload.get("servicelevel"),
         "connection": payload.get("connection"),
