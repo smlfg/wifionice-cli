@@ -72,7 +72,7 @@ def test_invalid_base_url_is_input_error(tmp_path: Path, monkeypatch):
         resolve_config(config_path=tmp_path / "missing.json")
     except CliError as e:
         assert e.code == ec.INPUT
-        assert "base_url" in e.message.lower() or "BASE_URL" in str(e.message)
+        assert "base_url" in e.message.lower()
     else:
         raise AssertionError("expected CliError")
 

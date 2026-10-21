@@ -11,6 +11,7 @@ from typing import Any
 from wifionice_cli import exit_codes as ec
 from wifionice_cli.errors import CliError
 from wifionice_cli.json_util import loads
+from wifionice_cli.validation import require_absolute_http_url
 
 ENV_PREFIX = "WIFIONICE_"
 ENV_BASE_URL = f"{ENV_PREFIX}BASE_URL"
@@ -143,9 +144,12 @@ def resolve_config(
         retries = DEFAULT_RETRIES
         sources["retries"] = "default"
 
+    base_url = require_absolute_http_url(str(base_url), name="base_url")
+    iceportal_url = require_absolute_http_url(str(iceportal_url), name="iceportal_url")
+
     return ResolvedConfig(
-        base_url=str(base_url).rstrip("/"),
-        iceportal_url=str(iceportal_url).rstrip("/"),
+        base_url=base_url.rstrip("/"),
+        iceportal_url=iceportal_url.rstrip("/"),
         state_path=state_path,
         timeout=timeout,
         retries=retries,

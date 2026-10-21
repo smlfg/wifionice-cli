@@ -7,8 +7,16 @@ from wifionice_cli.errors import CliError
 from wifionice_cli.validation import (
     parse_date,
     reject_nan_in_json_tree,
+    require_absolute_http_url,
     require_positive_int,
 )
+
+
+def test_require_absolute_http_url_rejects_schemeless():
+    with pytest.raises(CliError) as e:
+        require_absolute_http_url("not-a-url", name="base_url")
+    assert e.value.code == ec.INPUT
+    require_absolute_http_url("https://wifi.bahn.de", name="base_url")
 
 
 def test_positive_int_rejects_zero_and_negative():
