@@ -232,16 +232,34 @@ def test_speed_missing_field(portal, tmp_path: Path):
 
 
 def test_logout_removes_local_state(portal, tmp_path: Path):
-    _, url = portal
+    backend, url = portal
     assert (
         run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
     )
     assert state_path(tmp_path).exists()
+    backend.requests.clear()
     proc = run_cli(tmp_path, "logout", "--json", base_url=url)
     assert proc.returncode == ec.OK
     payload = one_json(proc)
     assert payload["removed"] is True
+    assert payload["portal_logoff"] is True
+    assert "POST /cna/logoff" in backend.paths()
+    assert backend.authenticated is False
     assert not state_path(tmp_path).exists()
+
+
+def test_logout_unreachable_portal_still_removes_state(portal, tmp_path: Path):
+    _, url = portal
+    assert (
+        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+    )
+    proc = run_cli(tmp_path, "logout", "--json", base_url=dead_url())
+    assert proc.returncode == ec.OK
+    payload = one_json(proc)
+    assert payload["removed"] is True
+    assert payload["portal_logoff"] is False
+    assert not state_path(tmp_path).exists()
+    assert "warning" in proc.stderr.lower()
 
 
 def test_logout_dry_run_keeps_state(portal, tmp_path: Path):
@@ -262,6 +280,7 @@ def test_logout_without_state_is_ok(tmp_path: Path):
     assert proc.returncode == ec.OK
     payload = one_json(proc)
     assert payload["removed"] is False
+    assert payload["portal_logoff"] is False
 
 
 def test_missing_command_is_input(tmp_path: Path):
