@@ -22,7 +22,7 @@ Globale Flags: `--json` (genau ein JSON-Objekt auf stdout, auch im Fehlerfall), 
 | `wifionice checkin --accept-terms` | Portal-Login inkl. Bestätigung der Nutzungsbedingungen; speichert lokalen Session-State |
 | `wifionice checkin --dry-run` | zeigt nur, was gesendet würde (kein Netzwerk) |
 | `wifionice status` | Portal erreichbar? Session aktiv? (CNA-API, Legacy-Fallback) |
-| `wifionice speed` | Zuggeschwindigkeit aus dem Onboard-ICE-Portal (nur im Zug erreichbar) |
+| `wifionice speed` | Zuggeschwindigkeit in km/h aus dem Onboard-ICE-Portal (kein Bandbreitentest; nur im Zug erreichbar) |
 | `wifionice logout` | Portal-Logoff (`POST /cna/logoff`, best effort) und lokaler Session-State |
 | `wifionice config` | zeigt die aufgelöste Konfiguration inkl. Quellen |
 | `wifionice version` | Paketversion |
@@ -118,6 +118,6 @@ Fazit: `checkin` und `status` sind nur im WIFIonICE-Netz vollständig testbar; v
 ## Grenzen
 
 - Echter Checkin, AGB-Schritt und aktive Session sind nur im Zug verifizierbar (siehe Live-Check).
-- `speed` ist die Zuggeschwindigkeit aus dem Onboard-Portal, keine Bandbreitenmessung.
+- `speed` ist die Zuggeschwindigkeit in km/h aus dem Onboard-Portal (`measurement`: `train_speed_kmh`), keine Bandbreitenmessung. Ein optionaler Bandbreiten-Check (`speed --bandwidth`) ist bewusst nicht vorgesehen; die CLI lehnt `--bandwidth` mit Exit-Code 1 ab.
 - `logout` meldet mit `--json` `portal_logoff: true/false`; ohne erreichbares Portal bleibt Exit 0, lokaler State wird trotzdem gelöscht.
 - Die Portal-API ist nicht versioniert und kann sich ändern; die Legacy-Variante dient als Fallback.
