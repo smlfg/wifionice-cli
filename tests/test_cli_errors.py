@@ -36,6 +36,18 @@ def test_unknown_flag_exit_input(tmp_path: Path):
     assert len(proc.stdout.strip().splitlines()) == 1
 
 
+def test_subparser_argparse_error_emits_json(tmp_path: Path):
+    """--config without value fails in the subparser; --json must still reach stdout."""
+    proc = run_cli(tmp_path, "checkin", "--config", "--json")
+    assert proc.returncode == ec.INPUT
+    assert proc.stdout.strip()
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == ec.INPUT
+    assert "--config" in payload["error"]["message"]
+    assert len(proc.stdout.strip().splitlines()) == 1
+
+
 def test_checkin_missing_accept_terms_human(tmp_path: Path):
     proc = run_cli(tmp_path, "checkin")
     assert proc.returncode == ec.INPUT

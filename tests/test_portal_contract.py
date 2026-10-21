@@ -208,7 +208,18 @@ def test_speed_happy_path(portal, tmp_path: Path):
     assert proc.returncode == ec.OK, proc.stderr
     payload = one_json(proc)
     assert payload["train_speed_kmh"] == 175.0
+    assert payload["measurement"] == "train_speed_kmh"
+    assert "bandwidth" in payload["note"].lower()
     assert payload["servicelevel"] == "AVAILABLE_SERVICE"
+
+
+def test_speed_bandwidth_flag_rejected(portal, tmp_path: Path):
+    _, url = portal
+    proc = run_cli(tmp_path, "speed", "--bandwidth", "--json", iceportal_url=url, base_url=url)
+    assert proc.returncode == ec.INPUT
+    err = one_json(proc)["error"]["message"]
+    assert "train speed" in err.lower()
+    assert "bandwidth" in err.lower()
 
 
 def test_speed_network_down(tmp_path: Path):
@@ -231,17 +242,54 @@ def test_speed_missing_field(portal, tmp_path: Path):
     assert proc.returncode == ec.PARSE
 
 
+def test_speed_empty_body_off_train(portal, tmp_path: Path):
+    backend, url = portal
+    backend.iceportal_mode = "empty"
+    proc = run_cli(tmp_path, "speed", "--json", iceportal_url=url)
+    assert proc.returncode == ec.PARSE
+    msg = one_json(proc)["error"]["message"].lower()
+    assert "empty" in msg
+    assert "train" in msg or "onboard" in msg
+
+
+def test_status_retries_transient_http_503(portal, tmp_path: Path):
+    backend, url = portal
+    backend.user_info_mode = "once_503"
+    proc = run_cli(tmp_path, "status", "--json", base_url=url, extra_env={"WIFIONICE_RETRIES": "2"})
+    assert proc.returncode == ec.OK, proc.stderr
+    assert one_json(proc)["authenticated"] is False
+    assert len([r for r in backend.requests if r["path"] == "/cna/wifi/user_info"]) == 2
+
+
 def test_logout_removes_local_state(portal, tmp_path: Path):
-    _, url = portal
+    backend, url = portal
     assert (
         run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
     )
     assert state_path(tmp_path).exists()
+    backend.requests.clear()
     proc = run_cli(tmp_path, "logout", "--json", base_url=url)
     assert proc.returncode == ec.OK
     payload = one_json(proc)
     assert payload["removed"] is True
+    assert payload["portal_logoff"] is True
+    assert "POST /cna/logoff" in backend.paths()
+    assert backend.authenticated is False
     assert not state_path(tmp_path).exists()
+
+
+def test_logout_unreachable_portal_still_removes_state(portal, tmp_path: Path):
+    _, url = portal
+    assert (
+        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+    )
+    proc = run_cli(tmp_path, "logout", "--json", base_url=dead_url())
+    assert proc.returncode == ec.OK
+    payload = one_json(proc)
+    assert payload["removed"] is True
+    assert payload["portal_logoff"] is False
+    assert not state_path(tmp_path).exists()
+    assert "warning" in proc.stderr.lower()
 
 
 def test_logout_dry_run_keeps_state(portal, tmp_path: Path):
@@ -262,6 +310,7 @@ def test_logout_without_state_is_ok(tmp_path: Path):
     assert proc.returncode == ec.OK
     payload = one_json(proc)
     assert payload["removed"] is False
+    assert payload["portal_logoff"] is False
 
 
 def test_missing_command_is_input(tmp_path: Path):

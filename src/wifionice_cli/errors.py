@@ -81,6 +81,19 @@ def run_main(main_fn, argv: list[str] | None = None) -> int:
 class ArgumentParser(argparse.ArgumentParser):
     """argparse parser that exits with :data:`~wifionice_cli.exit_codes.INPUT`."""
 
+    def add_subparsers(self, *args, **kwargs):
+        action = super().add_subparsers(*args, **kwargs)
+        parent_json = self.json_mode
+        orig_add_parser = action.add_parser
+
+        def add_parser(name, **kwargs):
+            sub = orig_add_parser(name, **kwargs)
+            sub.set_json_mode(parent_json)
+            return sub
+
+        action.add_parser = add_parser
+        return action
+
     def exit(self, status: int = 0, message: str | None = None) -> None:
         code = ec.map_argparse_exit(status)
         if message:

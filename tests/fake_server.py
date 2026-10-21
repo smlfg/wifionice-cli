@@ -84,6 +84,10 @@ class _Handler(BaseHTTPRequestHandler):
             if self.backend.user_info_mode == "bad_json":
                 self._send(200, "{this is not json", "application/json")
                 return
+            if self.backend.user_info_mode == "once_503":
+                self.backend.user_info_mode = "normal"
+                self._send(503, "temporary outage", "text/plain")
+                return
             result = {
                 "authenticated": "1" if self.backend.authenticated else "0",
                 "limit_mb": "200",
@@ -103,6 +107,9 @@ class _Handler(BaseHTTPRequestHandler):
                 )
             return
         if self.path == "/api1/rs/status":
+            if self.backend.iceportal_mode == "empty":
+                self._send(200, "", "application/octet-stream")
+                return
             if self.backend.iceportal_mode == "bad_json":
                 self._send(200, "not json", "application/json")
                 return

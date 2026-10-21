@@ -3,7 +3,8 @@
 Verified flows (see README, section "Endpunkte"):
 
 * CNA API (current portal): ``POST {base}/cna/logon`` with JSON ``{}`` and the
-  literal header ``X-Csrf-Token: csrf``; status via ``GET {base}/cna/wifi/user_info``.
+  literal header ``X-Csrf-Token: csrf``; logoff via ``POST {base}/cna/logoff``;
+  status via ``GET {base}/cna/wifi/user_info``.
 * Legacy portal (fallback on HTTP 404): ``GET {base}/de/`` stores a ``csrf``
   cookie, then ``POST {base}/de/`` with ``login=true&CSRFToken=<token>``.
 * Onboard ICE portal (only reachable on the train): ``GET {iceportal}/api1/rs/status``.
@@ -18,6 +19,7 @@ from typing import Any
 from wifionice_cli import exit_codes as ec
 from wifionice_cli.errors import CliError
 from wifionice_cli.http_util import HttpClient, form_encode
+from wifionice_cli.json_util import parse_json_object
 from wifionice_cli.url_util import join_preserve_base_path
 
 _CNA_HEADERS = {
@@ -69,10 +71,11 @@ class PortalClient:
         *,
         iceportal_url: str = "https://iceportal.de",
         timeout: float = 5.0,
+        retries: int = 2,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.iceportal_url = iceportal_url.rstrip("/")
-        self.http = HttpClient(timeout=timeout)
+        self.http = HttpClient(timeout=timeout, retries=retries)
 
     def _url(self, *parts: str) -> str:
         return join_preserve_base_path(self.base_url, *parts)
@@ -124,6 +127,22 @@ class PortalClient:
             )
         return payload
 
+    def cna_logoff(self) -> tuple[bool, str | None]:
+        """Best-effort CNA logoff. Returns (success, optional warning message)."""
+        url = self._url("cna/logoff")
+        headers = dict(_CNA_HEADERS, Referer=self._url("cna/"))
+        try:
+            payload = self.http.json_request(
+                "POST", url, data=b"{}", headers=headers, not_found_ok=True
+            )
+        except CliError as e:
+            return False, str(e)
+        if payload is None:
+            return False, None
+        if str(payload.get("result")).strip().lower() == "success":
+            return True, None
+        return False, "portal rejected the logoff"
+
     def legacy_login(self) -> dict[str, Any]:
         url = self._url("de") + "/"
         page = self.http.get_html(url)
@@ -164,7 +183,11 @@ class PortalClient:
 
     def iceportal_status(self) -> dict[str, Any]:
         url = join_preserve_base_path(self.iceportal_url, "api1/rs/status")
-        payload = self.http.json_request("GET", url, headers={"Accept": "application/json"})
-        if payload is None:
-            raise CliError(f"no response from onboard ICE portal: {url}", code=ec.NETWORK)
-        return payload
+        result = self.http.request("GET", url, headers={"Accept": "application/json"})
+        if not result.body.strip():
+            raise CliError(
+                "onboard ICE portal returned an empty body (train speed is only available on board)",
+                code=ec.PARSE,
+                details={"url": url},
+            )
+        return parse_json_object(result.body, name=f"response from {url}")

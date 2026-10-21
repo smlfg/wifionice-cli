@@ -16,11 +16,13 @@ ENV_BASE_URL = f"{ENV_PREFIX}BASE_URL"
 ENV_ICEPORTAL_URL = f"{ENV_PREFIX}ICEPORTAL_URL"
 ENV_STATE = f"{ENV_PREFIX}STATE"
 ENV_TIMEOUT = f"{ENV_PREFIX}TIMEOUT"
+ENV_RETRIES = f"{ENV_PREFIX}RETRIES"
 CONFIG_FILE_ENV = f"{ENV_PREFIX}CONFIG"
 
 DEFAULT_BASE_URL = "https://wifi.bahn.de"
 DEFAULT_ICEPORTAL_URL = "https://iceportal.de"
 DEFAULT_TIMEOUT = 5.0
+DEFAULT_RETRIES = 2
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "wifionice" / "config.json"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "wifionice" / "session.json"
 
@@ -31,6 +33,7 @@ class ResolvedConfig:
     iceportal_url: str
     state_path: Path
     timeout: float
+    retries: int
     sources: dict[str, str] = field(default_factory=dict)
 
 
@@ -44,6 +47,16 @@ def _load_file(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise CliError(f"config file must be a JSON object: {path}", code=ec.PARSE)
     return data
+
+
+def _parse_retries(value: str | int, *, source: str) -> int:
+    try:
+        retries = int(value)
+    except (TypeError, ValueError):
+        raise CliError(f"retries must be a positive integer, got {value!r} ({source})", code=ec.INPUT) from None
+    if retries < 1:
+        raise CliError(f"retries must be at least 1, got {retries} ({source})", code=ec.INPUT)
+    return retries
 
 
 def _parse_timeout(value: str | float, *, source: str) -> float:
@@ -116,10 +129,22 @@ def resolve_config(
         timeout = DEFAULT_TIMEOUT
         sources["timeout"] = "default"
 
+    retries_raw = environ.get(ENV_RETRIES)
+    if retries_raw is not None:
+        retries = _parse_retries(retries_raw, source=ENV_RETRIES)
+        sources["retries"] = "env"
+    elif file_data.get("retries") is not None:
+        retries = _parse_retries(file_data["retries"], source="config file")
+        sources["retries"] = "file"
+    else:
+        retries = DEFAULT_RETRIES
+        sources["retries"] = "default"
+
     return ResolvedConfig(
         base_url=str(base_url).rstrip("/"),
         iceportal_url=str(iceportal_url).rstrip("/"),
         state_path=state_path,
         timeout=timeout,
+        retries=retries,
         sources=sources,
     )

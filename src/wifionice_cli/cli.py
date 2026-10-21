@@ -70,10 +70,19 @@ def build_parser(json_mode: bool) -> ArgumentParser:
         help="portal reachable? session active? (CNA API, legacy fallback)",
     )
 
-    sub.add_parser(
+    p_speed = sub.add_parser(
         "speed",
         parents=[global_flags, config_flags],
-        help="train speed from the onboard ICE portal (only reachable on board)",
+        help="train speed in km/h from the onboard ICE portal (not a bandwidth test)",
+        description=(
+            "Report the train's current speed from GET {iceportal}/api1/rs/status. "
+            "This is onboard telemetry in km/h, not a download/upload bandwidth measurement."
+        ),
+    )
+    p_speed.add_argument(
+        "--bandwidth",
+        action="store_true",
+        help="not supported: speed is train speed (km/h), not link bandwidth",
     )
 
     sub.add_parser(
@@ -122,7 +131,12 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
         _emit({"command": "checkin", "dry_run": True, **_checkin_plan(cfg)}, json_mode=json_mode)
         return ec.OK
 
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     result = client.checkin()
     state = {
         "portal_base_url": cfg.base_url,
@@ -144,7 +158,12 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
 
 
 def _cmd_status(args, cfg, *, json_mode: bool) -> int:
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     info = client.status()
     out: dict = {
         "command": "status",
@@ -167,7 +186,18 @@ def _cmd_status(args, cfg, *, json_mode: bool) -> int:
 
 
 def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    if args.bandwidth:
+        raise CliError(
+            "speed reports train speed (km/h) from the onboard ICE portal, not a bandwidth test; "
+            "optional bandwidth measurement is not implemented",
+            code=ec.INPUT,
+        )
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     payload = client.iceportal_status()
     if "speed" not in payload:
         raise CliError(
@@ -179,6 +209,7 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
     out = {
         "command": "speed",
         "iceportal_url": cfg.iceportal_url,
+        "measurement": "train_speed_kmh",
         "train_speed_kmh": speed,
         "servicelevel": payload.get("servicelevel"),
         "connection": payload.get("connection"),
@@ -188,13 +219,33 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
     return ec.OK
 
 
+def _portal_logoff_best_effort(cfg) -> tuple[bool, str | None]:
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
+    return client.cna_logoff()
+
+
+def _warn(message: str) -> None:
+    print(f"warning: {message}", file=sys.stderr)
+
+
 def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
     local = load_state(cfg.state_path)
     if local is None:
+        portal_logoff = False
+        if not dry_run:
+            portal_logoff, warning = _portal_logoff_best_effort(cfg)
+            if warning:
+                _warn(warning)
         _emit(
             {
                 "command": "logout",
                 "removed": False,
+                "portal_logoff": portal_logoff,
                 "state_path": str(cfg.state_path),
                 "detail": "no local session state found",
             },
@@ -213,6 +264,9 @@ def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
             json_mode=json_mode,
         )
         return ec.OK
+    portal_logoff, warning = _portal_logoff_best_effort(cfg)
+    if warning:
+        _warn(warning)
     try:
         cfg.state_path.unlink()
     except OSError as e:
@@ -221,12 +275,18 @@ def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
             code=ec.PARSE,
             details={"reason": str(e)},
         ) from e
+    detail = (
+        "local state deleted; portal logoff succeeded"
+        if portal_logoff
+        else "local state deleted; portal logoff failed or unavailable"
+    )
     _emit(
         {
             "command": "logout",
             "removed": True,
+            "portal_logoff": portal_logoff,
             "state_path": str(cfg.state_path),
-            "detail": "local state deleted; the device stays logged in on the portal",
+            "detail": detail,
         },
         json_mode=json_mode,
     )
@@ -258,6 +318,7 @@ def _main(argv: list[str] | None = None) -> int:
                 "iceportal_url": cfg.iceportal_url,
                 "state_path": str(cfg.state_path),
                 "timeout": cfg.timeout,
+                "retries": cfg.retries,
                 "sources": cfg.sources,
             },
             json_mode=json_mode,

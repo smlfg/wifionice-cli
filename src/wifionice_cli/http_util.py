@@ -26,14 +26,40 @@ class HttpResult:
 class HttpClient:
     """Follows redirects and keeps cookies; raises CliError(3) on transport failure."""
 
-    def __init__(self, timeout: float = 5.0) -> None:
+    def __init__(self, timeout: float = 5.0, *, retries: int = 2) -> None:
         self.timeout = timeout
+        self.retries = max(1, retries)
         self.cookies = http.cookiejar.CookieJar()
         self._opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(self.cookies),
         )
 
     def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
+        accept_status: tuple[int, ...] = (200,),
+    ) -> HttpResult:
+        last: CliError | None = None
+        for attempt in range(self.retries):
+            try:
+                return self._request_once(
+                    method,
+                    url,
+                    data=data,
+                    headers=headers,
+                    accept_status=accept_status,
+                )
+            except CliError as e:
+                if e.code != ec.NETWORK or attempt + 1 >= self.retries:
+                    raise
+                last = e
+        raise last  # pragma: no cover
+
+    def _request_once(
         self,
         method: str,
         url: str,
