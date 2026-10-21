@@ -3,7 +3,8 @@
 Verified flows (see README, section "Endpunkte"):
 
 * CNA API (current portal): ``POST {base}/cna/logon`` with JSON ``{}`` and the
-  literal header ``X-Csrf-Token: csrf``; status via ``GET {base}/cna/wifi/user_info``.
+  literal header ``X-Csrf-Token: csrf``; logoff via ``POST {base}/cna/logoff``;
+  status via ``GET {base}/cna/wifi/user_info``.
 * Legacy portal (fallback on HTTP 404): ``GET {base}/de/`` stores a ``csrf``
   cookie, then ``POST {base}/de/`` with ``login=true&CSRFToken=<token>``.
 * Onboard ICE portal (only reachable on the train): ``GET {iceportal}/api1/rs/status``.
@@ -123,6 +124,22 @@ class PortalClient:
                 details={"result": result},
             )
         return payload
+
+    def cna_logoff(self) -> tuple[bool, str | None]:
+        """Best-effort CNA logoff. Returns (success, optional warning message)."""
+        url = self._url("cna/logoff")
+        headers = dict(_CNA_HEADERS, Referer=self._url("cna/"))
+        try:
+            payload = self.http.json_request(
+                "POST", url, data=b"{}", headers=headers, not_found_ok=True
+            )
+        except CliError as e:
+            return False, str(e)
+        if payload is None:
+            return False, None
+        if str(payload.get("result")).strip().lower() == "success":
+            return True, None
+        return False, "portal rejected the logoff"
 
     def legacy_login(self) -> dict[str, Any]:
         url = self._url("de") + "/"

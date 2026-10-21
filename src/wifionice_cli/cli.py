@@ -188,13 +188,28 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
     return ec.OK
 
 
+def _portal_logoff_best_effort(cfg) -> tuple[bool, str | None]:
+    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    return client.cna_logoff()
+
+
+def _warn(message: str) -> None:
+    print(f"warning: {message}", file=sys.stderr)
+
+
 def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
     local = load_state(cfg.state_path)
     if local is None:
+        portal_logoff = False
+        if not dry_run:
+            portal_logoff, warning = _portal_logoff_best_effort(cfg)
+            if warning:
+                _warn(warning)
         _emit(
             {
                 "command": "logout",
                 "removed": False,
+                "portal_logoff": portal_logoff,
                 "state_path": str(cfg.state_path),
                 "detail": "no local session state found",
             },
@@ -213,6 +228,9 @@ def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
             json_mode=json_mode,
         )
         return ec.OK
+    portal_logoff, warning = _portal_logoff_best_effort(cfg)
+    if warning:
+        _warn(warning)
     try:
         cfg.state_path.unlink()
     except OSError as e:
@@ -221,12 +239,18 @@ def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
             code=ec.PARSE,
             details={"reason": str(e)},
         ) from e
+    detail = (
+        "local state deleted; portal logoff succeeded"
+        if portal_logoff
+        else "local state deleted; portal logoff failed or unavailable"
+    )
     _emit(
         {
             "command": "logout",
             "removed": True,
+            "portal_logoff": portal_logoff,
             "state_path": str(cfg.state_path),
-            "detail": "local state deleted; the device stays logged in on the portal",
+            "detail": detail,
         },
         json_mode=json_mode,
     )
