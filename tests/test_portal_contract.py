@@ -208,7 +208,18 @@ def test_speed_happy_path(portal, tmp_path: Path):
     assert proc.returncode == ec.OK, proc.stderr
     payload = one_json(proc)
     assert payload["train_speed_kmh"] == 175.0
+    assert payload["measurement"] == "train_speed_kmh"
+    assert "bandwidth" in payload["note"].lower()
     assert payload["servicelevel"] == "AVAILABLE_SERVICE"
+
+
+def test_speed_bandwidth_flag_rejected(portal, tmp_path: Path):
+    _, url = portal
+    proc = run_cli(tmp_path, "speed", "--bandwidth", "--json", iceportal_url=url, base_url=url)
+    assert proc.returncode == ec.INPUT
+    err = one_json(proc)["error"]["message"]
+    assert "train speed" in err.lower()
+    assert "bandwidth" in err.lower()
 
 
 def test_speed_network_down(tmp_path: Path):
