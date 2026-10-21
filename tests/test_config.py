@@ -76,6 +76,18 @@ def test_invalid_timeout_is_input_error(tmp_path: Path, monkeypatch):
         raise AssertionError("expected CliError")
 
 
+def test_nan_timeout_env_is_input_error(tmp_path: Path, monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv(ENV_TIMEOUT, "nan")
+    try:
+        resolve_config(config_path=tmp_path / "missing.json")
+    except CliError as e:
+        assert e.code == ec.INPUT
+        assert "finite" in e.message.lower()
+    else:
+        raise AssertionError("expected CliError")
+
+
 def test_broken_config_file_is_parse_error(tmp_path: Path, monkeypatch):
     _clear(monkeypatch)
     cfg_file = tmp_path / "config.json"
