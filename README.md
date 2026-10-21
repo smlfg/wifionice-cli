@@ -74,7 +74,7 @@ Präzedenz: Umgebungsvariablen > Konfigurationsdatei (`~/.config/wifionice/confi
 
 | Variable | Default | Zweck |
 |----------|---------|-------|
-| `WIFIONICE_BASE_URL` | `https://wifi.bahn.de` | Basis-URL des Captive Portals |
+| `WIFIONICE_BASE_URL` | `https://wifi.bahn.de` | Basis-URL des Captive Portals (absolut, Schema `http`/`https`) |
 | `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed` |
 | `WIFIONICE_STATE` | `~/.local/state/wifionice/session.json` | Pfad des lokalen Session-States |
 | `WIFIONICE_TIMEOUT` | `5` | HTTP-Timeout in Sekunden |
