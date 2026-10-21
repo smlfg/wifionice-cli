@@ -65,6 +65,18 @@ def test_defaults_when_nothing_set(tmp_path: Path, monkeypatch):
     assert cfg.sources["base_url"] == "default"
 
 
+def test_invalid_base_url_is_input_error(tmp_path: Path, monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv(ENV_BASE_URL, "not-a-url")
+    try:
+        resolve_config(config_path=tmp_path / "missing.json")
+    except CliError as e:
+        assert e.code == ec.INPUT
+        assert "base_url" in e.message.lower()
+    else:
+        raise AssertionError("expected CliError")
+
+
 def test_invalid_timeout_is_input_error(tmp_path: Path, monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv(ENV_TIMEOUT, "abc")

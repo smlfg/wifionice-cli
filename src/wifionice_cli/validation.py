@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import math
+import urllib.parse
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from wifionice_cli import exit_codes as ec
 from wifionice_cli.errors import CliError
+
+
+def require_absolute_http_url(value: str, *, name: str = "url") -> str:
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise CliError(
+            f"{name} must be an absolute http or https URL, got {value!r}",
+            code=ec.INPUT,
+        )
+    return value
 
 
 def require_positive_int(value: int | str, *, name: str = "value") -> int:

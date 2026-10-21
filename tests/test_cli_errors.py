@@ -85,6 +85,32 @@ def test_status_never_writes_state_with_dry_run(tmp_path: Path):
     assert not dest.exists()
 
 
+def test_invalid_base_url_status_json_no_traceback(tmp_path: Path):
+    proc = run_cli(
+        tmp_path,
+        "status",
+        "--json",
+        extra_env={"WIFIONICE_BASE_URL": "not-a-url"},
+    )
+    assert proc.returncode == ec.INPUT
+    assert "Traceback" not in proc.stderr
+    assert len(proc.stdout.strip().splitlines()) == 1
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == ec.INPUT
+
+
+def test_invalid_base_url_status_human_no_traceback(tmp_path: Path):
+    proc = run_cli(
+        tmp_path,
+        "status",
+        extra_env={"WIFIONICE_BASE_URL": "not-a-url"},
+    )
+    assert proc.returncode == ec.INPUT
+    assert "Traceback" not in proc.stderr
+    assert proc.stderr.strip()
+
+
 def test_nan_timeout_status_json_no_traceback(tmp_path: Path):
     proc = run_cli(
         tmp_path,
