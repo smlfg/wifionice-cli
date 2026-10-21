@@ -242,6 +242,25 @@ def test_speed_missing_field(portal, tmp_path: Path):
     assert proc.returncode == ec.PARSE
 
 
+def test_speed_empty_body_off_train(portal, tmp_path: Path):
+    backend, url = portal
+    backend.iceportal_mode = "empty"
+    proc = run_cli(tmp_path, "speed", "--json", iceportal_url=url)
+    assert proc.returncode == ec.PARSE
+    msg = one_json(proc)["error"]["message"].lower()
+    assert "empty" in msg
+    assert "train" in msg or "onboard" in msg
+
+
+def test_status_retries_transient_http_503(portal, tmp_path: Path):
+    backend, url = portal
+    backend.user_info_mode = "once_503"
+    proc = run_cli(tmp_path, "status", "--json", base_url=url, extra_env={"WIFIONICE_RETRIES": "2"})
+    assert proc.returncode == ec.OK, proc.stderr
+    assert one_json(proc)["authenticated"] is False
+    assert len([r for r in backend.requests if r["path"] == "/cna/wifi/user_info"]) == 2
+
+
 def test_logout_removes_local_state(portal, tmp_path: Path):
     backend, url = portal
     assert (
