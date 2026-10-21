@@ -78,12 +78,13 @@ Präzedenz: Umgebungsvariablen > Konfigurationsdatei (`~/.config/wifionice/confi
 | `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed` |
 | `WIFIONICE_STATE` | `~/.local/state/wifionice/session.json` | Pfad des lokalen Session-States |
 | `WIFIONICE_TIMEOUT` | `5` | HTTP-Timeout in Sekunden |
+| `WIFIONICE_RETRIES` | `2` | Anzahl HTTP-Versuche bei Transportfehler oder HTTP 5xx (z. B. kurzer Netzabriss im Zug) |
 | `WIFIONICE_CONFIG` | `~/.config/wifionice/config.json` | Pfad der Konfigurationsdatei |
 
 Konfigurationsdatei (JSON), alles optional:
 
 ```json
-{"base_url": "https://wifi.bahn.de", "iceportal_url": "https://iceportal.de", "timeout": 5}
+{"base_url": "https://wifi.bahn.de", "iceportal_url": "https://iceportal.de", "timeout": 5, "retries": 2}
 ```
 
 ## State
@@ -104,16 +105,20 @@ Contract-Tests (`tests/test_portal_contract.py`) decken Happy Path und Fehlerpfa
 
 ## Live-Check
 
-Stand 2026-10-13, Heimnetz, **ohne** Zug-WLAN; read-only (kein echter Checkin, keine Dateneingabe), ~8 Requests:
+Stand 2026-10-21, Heimnetz, **ohne** Zug-WLAN; read-only (kein echter Checkin, keine Dateneingabe):
 
 | Endpoint | Ergebnis | Bedeutung |
 |----------|----------|-----------|
-| `https://wifi.bahn.de/` | `NXDOMAIN` (öffentliches DNS) | Portal-Domain existiert nur im Zugnetz |
-| `https://login.wifionice.de/` | `NXDOMAIN` | ebenso |
-| `https://iceportal.de/` | HTTP 200, ICE-Portal-Seite (84 KB) | Host öffentlich erreichbar |
-| `https://iceportal.de/api1/rs/status` | HTTP 200, leerer Body (0 Bytes, `application/octet-stream`) | verwertbare JSON-Daten nur im Zug |
+| `https://wifi.bahn.de/` | DNS ggf. auflösbar, TLS bricht ab (`SSL: UNEXPECTED_EOF`) | Captive-Portal-Verhalten außerhalb des Zugnetzes; öffentliches DNS oft `NXDOMAIN` |
+| `https://login.wifionice.de/` | wie oben / `NXDOMAIN` | Portal-Host nur im Zug voll nutzbar |
+| `https://iceportal.de/` | HTTP 200, ICE-Portal-Seite | Host öffentlich erreichbar |
+| `https://iceportal.de/api1/rs/status` | HTTP 200, leerer Body (0 Bytes, `application/octet-stream`) | JSON mit `speed` nur im Zug |
+| `wifionice speed --json` | Exit 4, Meldung „empty body … only available on board“ | kein erfundener km/h-Wert |
+| `wifionice status --json` | Exit 3 bei nicht erreichbarem Portal | erwartbar ohne Zug-WLAN |
 
-Fazit: `checkin` und `status` sind nur im WIFIonICE-Netz vollständig testbar; von zu Hause greift erwartetes Captive-Portal-Verhalten (kein DNS für die Portal-Hosts). `speed` liefert erst im Zug strukturierte Daten — deshalb bricht die CLI außerhalb des Zugnetzes sauber mit Exit-Code 4 ab, statt Werte zu erfinden. Ein echter Checkin wurde nicht ausgeführt.
+**Im Zug (Checkliste Issue #3):** CNA-Checkin mit `--accept-terms`, `status` gegen `/cna/wifi/user_info`, `speed` mit numerischem `train_speed_kmh`; bei kurzem Abbruch hilft der Default `WIFIONICE_RETRIES=2` (zweiter Versuch nach Transportfehler oder HTTP 5xx). Offline abgedeckt in `tests/test_portal_contract.py` (`test_speed_empty_body_off_train`, `test_status_retries_transient_http_503`).
+
+Fazit: `checkin` und `status` sind nur im WIFIonICE-Netz vollständig testbar. `speed` liefert erst im Zug strukturierte Daten — außerhalb bricht die CLI mit Exit-Code 4 ab und erklärt den leeren ICE-Portal-Body, statt Werte zu erfinden.
 
 ## Grenzen
 
