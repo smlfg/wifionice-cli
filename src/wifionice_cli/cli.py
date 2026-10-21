@@ -131,7 +131,12 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
         _emit({"command": "checkin", "dry_run": True, **_checkin_plan(cfg)}, json_mode=json_mode)
         return ec.OK
 
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     result = client.checkin()
     state = {
         "portal_base_url": cfg.base_url,
@@ -153,7 +158,12 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
 
 
 def _cmd_status(args, cfg, *, json_mode: bool) -> int:
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     info = client.status()
     out: dict = {
         "command": "status",
@@ -182,7 +192,12 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
             "optional bandwidth measurement is not implemented",
             code=ec.INPUT,
         )
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     payload = client.iceportal_status()
     if "speed" not in payload:
         raise CliError(
@@ -205,7 +220,12 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
 
 
 def _portal_logoff_best_effort(cfg) -> tuple[bool, str | None]:
-    client = PortalClient(cfg.base_url, iceportal_url=cfg.iceportal_url, timeout=cfg.timeout)
+    client = PortalClient(
+        cfg.base_url,
+        iceportal_url=cfg.iceportal_url,
+        timeout=cfg.timeout,
+        retries=cfg.retries,
+    )
     return client.cna_logoff()
 
 
@@ -298,6 +318,7 @@ def _main(argv: list[str] | None = None) -> int:
                 "iceportal_url": cfg.iceportal_url,
                 "state_path": str(cfg.state_path),
                 "timeout": cfg.timeout,
+                "retries": cfg.retries,
                 "sources": cfg.sources,
             },
             json_mode=json_mode,
