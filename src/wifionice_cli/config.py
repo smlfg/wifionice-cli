@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,6 +52,10 @@ def _parse_timeout(value: str | float, *, source: str) -> float:
         timeout = float(value)
     except (TypeError, ValueError):
         raise CliError(f"timeout must be a number, got {value!r} ({source})", code=ec.INPUT) from None
+    if not math.isfinite(timeout):
+        # float('nan') slips past the <= 0 check below, and later blows up
+        # inside socket.settimeout() as a raw ValueError traceback.
+        raise CliError(f"timeout must be a finite number, got {value!r} ({source})", code=ec.INPUT)
     if timeout <= 0:
         raise CliError(f"timeout must be positive, got {timeout} ({source})", code=ec.INPUT)
     return timeout

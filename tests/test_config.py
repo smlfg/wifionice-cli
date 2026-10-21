@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from wifionice_cli import exit_codes as ec
 from wifionice_cli.config import (
     ENV_BASE_URL,
@@ -84,5 +86,18 @@ def test_broken_config_file_is_parse_error(tmp_path: Path, monkeypatch):
         resolve_config(config_path=cfg_file)
     except CliError as e:
         assert e.code == ec.PARSE
+    else:
+        raise AssertionError("expected CliError")
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf", "1e999", "NaN", "infinity"])
+def test_non_finite_timeout_is_input_error(tmp_path: Path, monkeypatch, value):
+    _clear(monkeypatch)
+    monkeypatch.setenv(ENV_TIMEOUT, value)
+    try:
+        resolve_config(config_path=tmp_path / "missing.json")
+    except CliError as e:
+        assert e.code == ec.INPUT
+        assert "finite" in str(e)
     else:
         raise AssertionError("expected CliError")

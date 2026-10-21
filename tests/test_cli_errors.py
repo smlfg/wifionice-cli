@@ -66,3 +66,22 @@ def test_status_never_writes_state_with_dry_run(tmp_path: Path):
     proc = run_cli(tmp_path, "status", "--dry-run", "--json")
     assert proc.returncode == ec.INPUT
     assert not dest.exists()
+
+
+def test_nan_timeout_is_clean_input_error_json(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("WIFIONICE_TIMEOUT", "nan")
+    proc = run_cli(tmp_path, "status", "--json")
+    assert proc.returncode == ec.INPUT
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == ec.INPUT
+    assert "Traceback" not in proc.stderr
+    assert len(proc.stdout.strip().splitlines()) == 1
+
+
+def test_nan_timeout_is_clean_input_error_human(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("WIFIONICE_TIMEOUT", "nan")
+    proc = run_cli(tmp_path, "status")
+    assert proc.returncode == ec.INPUT
+    assert "Traceback" not in proc.stderr
+    assert "timeout" in proc.stderr
