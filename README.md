@@ -23,7 +23,7 @@ Globale Flags: `--json` (genau ein JSON-Objekt auf stdout, auch im Fehlerfall), 
 | `wifionice checkin --dry-run` | zeigt nur, was gesendet würde (kein Netzwerk) |
 | `wifionice status` | Portal erreichbar? Session aktiv? (CNA-API, Legacy-Fallback) |
 | `wifionice speed` | Zuggeschwindigkeit aus dem Onboard-ICE-Portal (nur im Zug erreichbar) |
-| `wifionice logout` | löscht den lokalen Session-State (das Gerät bleibt im Portal eingeloggt) |
+| `wifionice logout` | Portal-Logoff (`POST /cna/logoff`, best effort) und lokaler Session-State |
 | `wifionice config` | zeigt die aufgelöste Konfiguration inkl. Quellen |
 | `wifionice version` | Paketversion |
 
@@ -62,6 +62,7 @@ Recherchiert und gegen Open-Source-Referenzen abgeglichen (siehe unten). Es wurd
 |------|---------|---------|
 | CNA-Checkin (aktuell) | `POST {base}/cna/logon`, Body `{}`, Header `Content-Type: application/json`, `X-Requested-With: XMLHttpRequest`, `X-Csrf-Token: csrf`, `Referer: {base}/cna/` | JSON mit `result: "success"` |
 | CNA-Status | `GET {base}/cna/wifi/user_info` | JSON, u. a. `result.authenticated` (`"1"`/`"0"`) |
+| CNA-Logoff | `POST {base}/cna/logoff`, Body `{}`, gleiche Header wie CNA-Checkin | JSON mit `result: "success"` |
 | Legacy-Fallback (bei HTTP 404) | `GET {base}/de/` setzt ein `csrf`-Cookie, dann `POST {base}/de/` mit `login=true&CSRFToken=<token>` | HTML ohne `id="accept"`-Formular = eingeloggt |
 | Zuggeschwindigkeit | `GET {iceportal}/api1/rs/status` | JSON, u. a. `speed` (km/h), `servicelevel`, `connection` |
 
@@ -89,7 +90,7 @@ Konfigurationsdatei (JSON), alles optional:
 
 - `checkin` schreibt den lokalen Session-State atomar (Temp-Datei + Rename) und ohne Secrets: Basis-URL, Methode, Zeitpunkt.
 - `--dry-run` führt keine Schreibzugriffe aus.
-- `logout` löscht nur den lokalen State; die Portal-Session des Geräts bleibt bestehen.
+- `logout` versucht `POST /cna/logoff` (best effort, Fehler nur als Warning); der lokale State wird immer entfernt.
 
 ## Tests
 
@@ -118,5 +119,5 @@ Fazit: `checkin` und `status` sind nur im WIFIonICE-Netz vollständig testbar; v
 
 - Echter Checkin, AGB-Schritt und aktive Session sind nur im Zug verifizierbar (siehe Live-Check).
 - `speed` ist die Zuggeschwindigkeit aus dem Onboard-Portal, keine Bandbreitenmessung.
-- `logout` wirkt nur lokal; ein Portal-Logoff (`POST /cna/logoff` ist dokumentiert, aber nicht implementiert) würde das Gerät trennen.
+- `logout` meldet mit `--json` `portal_logoff: true/false`; ohne erreichbares Portal bleibt Exit 0, lokaler State wird trotzdem gelöscht.
 - Die Portal-API ist nicht versioniert und kann sich ändern; die Legacy-Variante dient als Fallback.
