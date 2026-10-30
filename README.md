@@ -4,6 +4,19 @@ CLI für das WIFIonICE-Zug-WLAN (Captive Portal `wifi.bahn.de` / `login.wifionic
 
 Kein offizielles Werkzeug der Deutschen Bahn. Nutzung auf eigene Verantwortung; für die Portalnutzung gelten die AGB der DB. Es werden keine Zugangsdaten benötigt und keine gespeichert.
 
+## Schnellstart
+
+Empfohlen: `pipx install git+https://github.com/smlfg/wifionice-cli` (landet automatisch im PATH).
+Alternative: `pip install --user git+https://github.com/smlfg/wifionice-cli` — wird der Befehl danach nicht gefunden, pipx nutzen oder das bin-Verzeichnis des venv in den PATH aufnehmen.
+
+```bash
+wifionice checkin --accept-terms   # im Zug ins Portal einloggen (AGB bestätigen)
+wifionice status                   # Portal erreichbar? Session aktiv?
+wifionice speed                    # Zuggeschwindigkeit aus dem ICE-Portal
+```
+
+Diese Commands mit allen Optionen: `wifionice --help` bzw. `wifionice checkin --help` (weitere: status, speed, logout, config, version).
+
 ## Installation
 
 ```bash
