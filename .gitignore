@@ -6,3 +6,4 @@ dist/
 *.egg-info/
 .state-*.tmp
 .repo-work/
+scratch/
