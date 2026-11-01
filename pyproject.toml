@@ -7,6 +7,7 @@ name = "wifionice"
 version = "0.1.0"
 description = "WIFIonICE-CLI: Auto-Login ins Zug-WLAN (wifi.bahn.de), Status, Speed-Check"
 readme = "README.md"
+license = { text = "MIT" }
 authors = [{ name = "Samuel Fleig" }]
 requires-python = ">=3.11"
 dependencies = []
