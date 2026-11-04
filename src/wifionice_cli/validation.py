@@ -16,7 +16,9 @@ def require_absolute_http_url(value: str, *, name: str = "url") -> str:
     parsed = urllib.parse.urlparse(value)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise CliError(
-            f"{name} must be an absolute http or https URL, got {value!r}",
+            f"{name} must be an absolute http or https URL, got {value!r}; "
+            "next step: set the URL via the config file or the matching "
+            "WIFIONICE_* environment variable (for example WIFIONICE_BASE_URL)",
             code=ec.INPUT,
         )
     return value

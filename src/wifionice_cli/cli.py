@@ -88,7 +88,7 @@ def build_parser(json_mode: bool) -> ArgumentParser:
     sub.add_parser(
         "logout",
         parents=[global_flags, config_flags],
-        help="delete the local session state (does not log the device off the portal)",
+        help="best-effort portal logoff and delete the local session state",
     )
 
     return parser
@@ -329,11 +329,19 @@ def _main(argv: list[str] | None = None) -> int:
         return _cmd_checkin(args, cfg, json_mode=json_mode, dry_run=dry_run)
     if args.command == "status":
         if dry_run:
-            raise CliError("status does not support --dry-run", code=ec.INPUT)
+            raise CliError(
+                "status does not support --dry-run; next step: run `wifionice status` "
+                "without --dry-run",
+                code=ec.INPUT,
+            )
         return _cmd_status(args, cfg, json_mode=json_mode)
     if args.command == "speed":
         if dry_run:
-            raise CliError("speed does not support --dry-run", code=ec.INPUT)
+            raise CliError(
+                "speed does not support --dry-run; next step: run `wifionice speed` "
+                "without --dry-run",
+                code=ec.INPUT,
+            )
         return _cmd_speed(args, cfg, json_mode=json_mode)
     if args.command == "logout":
         return _cmd_logout(args, cfg, json_mode=json_mode, dry_run=dry_run)

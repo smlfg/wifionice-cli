@@ -97,7 +97,8 @@ class HttpClient:
             ) from e
         except (urllib.error.URLError, socket.timeout, TimeoutError, OSError) as e:
             raise CliError(
-                f"cannot reach {url}",
+                f"cannot reach {url}; next step: check the network and the "
+                "configured WIFIONICE_BASE_URL/WIFIONICE_ICEPORTAL_URL",
                 code=ec.NETWORK,
                 details={"reason": str(e)},
             ) from e
