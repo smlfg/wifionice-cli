@@ -165,9 +165,9 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
         _emit({"command": "checkin", "dry_run": True, **_checkin_plan(cfg)}, json_mode=json_mode)
         return ec.OK
 
+    _checkin_summary(cfg, json_mode=json_mode)
     interactive = sys.stdin.isatty()
     if interactive:
-        _checkin_summary(cfg, json_mode=json_mode)
         if not _confirm_checkin():
             _emit(
                 {
