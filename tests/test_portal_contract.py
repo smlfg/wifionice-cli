@@ -62,7 +62,7 @@ def state_path(tmp_path: Path) -> Path:
 
 def test_checkin_happy_path_writes_state(portal, tmp_path: Path):
     backend, url = portal
-    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url)
+    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url)
     assert proc.returncode == ec.OK, proc.stderr
     payload = one_json(proc)
     assert payload["ok"] is True
@@ -93,6 +93,34 @@ def test_checkin_requires_accept_terms(portal, tmp_path: Path):
     assert not state_path(tmp_path).exists()
 
 
+def test_checkin_requires_confirm_without_tty(portal, tmp_path: Path):
+    backend, url = portal
+    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url)
+    assert proc.returncode == ec.INPUT
+    payload = one_json(proc)
+    assert payload["error"]["code"] == ec.INPUT
+    assert "--confirm" in payload["error"]["message"]
+    assert backend.requests == []
+    assert not state_path(tmp_path).exists()
+
+
+def test_checkin_yes_alias_without_tty(portal, tmp_path: Path):
+    backend, url = portal
+    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--yes", "--json", base_url=url)
+    assert proc.returncode == ec.OK, proc.stderr
+    assert one_json(proc)["checked_in"] is True
+    assert "POST /cna/logon" in backend.paths()
+
+
+def test_checkin_state_is_private(portal, tmp_path: Path):
+    _, url = portal
+    assert (
+        run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url).returncode
+        == ec.OK
+    )
+    assert state_path(tmp_path).stat().st_mode & 0o777 == 0o600
+
+
 def test_checkin_dry_run_no_network_no_state(portal, tmp_path: Path):
     backend, url = portal
     proc = run_cli(tmp_path, "checkin", "--accept-terms", "--dry-run", "--json", base_url=url)
@@ -115,7 +143,7 @@ def test_checkin_dry_run_without_accept_terms_shows_plan(portal, tmp_path: Path)
 def test_checkin_portal_rejection_is_auth(portal, tmp_path: Path):
     backend, url = portal
     backend.logon_result = "failure"
-    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url)
+    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url)
     assert proc.returncode == ec.AUTH
     payload = one_json(proc)
     assert payload["error"]["code"] == ec.AUTH
@@ -127,6 +155,7 @@ def test_checkin_network_down(portal, tmp_path: Path):
         tmp_path,
         "checkin",
         "--accept-terms",
+        "--confirm",
         "--json",
         base_url=dead_url(),
     )
@@ -138,7 +167,7 @@ def test_checkin_network_down(portal, tmp_path: Path):
 def test_checkin_legacy_fallback(portal, tmp_path: Path):
     backend, url = portal
     backend.cna_available = False
-    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url)
+    proc = run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url)
     assert proc.returncode == ec.OK, proc.stderr
     payload = one_json(proc)
     assert payload["method"] == "legacy"
@@ -161,7 +190,7 @@ def test_status_unauthenticated(portal, tmp_path: Path):
 def test_status_authenticated_after_checkin(portal, tmp_path: Path):
     _, url = portal
     assert (
-        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+        run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url).returncode == ec.OK
     )
     proc = run_cli(tmp_path, "status", "--json", base_url=url)
     assert proc.returncode == ec.OK
@@ -265,7 +294,7 @@ def test_status_retries_transient_http_503(portal, tmp_path: Path):
 def test_logout_removes_local_state(portal, tmp_path: Path):
     backend, url = portal
     assert (
-        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+        run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url).returncode == ec.OK
     )
     assert state_path(tmp_path).exists()
     backend.requests.clear()
@@ -282,7 +311,7 @@ def test_logout_removes_local_state(portal, tmp_path: Path):
 def test_logout_unreachable_portal_still_removes_state(portal, tmp_path: Path):
     _, url = portal
     assert (
-        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+        run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url).returncode == ec.OK
     )
     proc = run_cli(tmp_path, "logout", "--json", base_url=dead_url())
     assert proc.returncode == ec.OK
@@ -296,7 +325,7 @@ def test_logout_unreachable_portal_still_removes_state(portal, tmp_path: Path):
 def test_logout_dry_run_keeps_state(portal, tmp_path: Path):
     _, url = portal
     assert (
-        run_cli(tmp_path, "checkin", "--accept-terms", "--json", base_url=url).returncode == ec.OK
+        run_cli(tmp_path, "checkin", "--accept-terms", "--confirm", "--json", base_url=url).returncode == ec.OK
     )
     proc = run_cli(tmp_path, "logout", "--dry-run", "--json", base_url=url)
     assert proc.returncode == ec.OK

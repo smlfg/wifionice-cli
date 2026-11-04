@@ -68,7 +68,21 @@ def build_parser(json_mode: bool) -> ArgumentParser:
     p_checkin.add_argument(
         "--accept-terms",
         action="store_true",
-        help="explicitly accept the WIFIonICE terms of use (required for a real checkin)",
+        help=(
+            "explicitly accept the WIFIonICE terms of use; without a TTY "
+            "--confirm or --yes is required as well"
+        ),
+    )
+    consent = p_checkin.add_mutually_exclusive_group()
+    consent.add_argument(
+        "--confirm",
+        action="store_true",
+        help="non-interactive confirmation for agents (no prompt)",
+    )
+    consent.add_argument(
+        "--yes",
+        action="store_true",
+        help="alias for --confirm",
     )
 
     sub.add_parser(
@@ -127,16 +141,59 @@ def _checkin_plan(cfg) -> dict:
     }
 
 
+def _checkin_summary(cfg, *, json_mode: bool) -> None:
+    lines = [
+        f"Portal: {cfg.base_url}",
+        "AGB: Der Checkin bestätigt die Nutzungsbedingungen des WIFIonICE-Portals.",
+    ]
+    stream = sys.stderr if json_mode else sys.stdout
+    for line in lines:
+        print(line, file=stream)
+
+
+def _confirm_checkin() -> bool:
+    sys.stderr.write("Checkin verbindlich? [j/N] ")
+    sys.stderr.flush()
+    line = sys.stdin.readline()
+    if line == "":
+        raise EOFError("end of input at checkin prompt")
+    return line.strip().lower() in {"j", "ja", "y", "yes"}
+
+
 def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
-    if not args.accept_terms and not dry_run:
-        raise CliError(
-            "checkin requires --accept-terms "
-            "(the portal login confirms the WIFIonICE terms of use)",
-            code=ec.INPUT,
-        )
     if dry_run:
         _emit({"command": "checkin", "dry_run": True, **_checkin_plan(cfg)}, json_mode=json_mode)
         return ec.OK
+
+    interactive = sys.stdin.isatty()
+    if interactive:
+        _checkin_summary(cfg, json_mode=json_mode)
+        if not _confirm_checkin():
+            _emit(
+                {
+                    "command": "checkin",
+                    "checked_in": False,
+                    "cancelled": True,
+                },
+                json_mode=json_mode,
+                human=["Checkin abgebrochen; keine Anfrage gesendet."],
+            )
+            return ec.OK
+    else:
+        missing: list[str] = []
+        if not args.accept_terms:
+            missing.append("--accept-terms")
+        if not (args.confirm or args.yes):
+            missing.append("--confirm or --yes")
+        if missing:
+            raise CliError(
+                "checkin needs explicit consent without a TTY: missing "
+                + " and ".join(missing)
+                + "; next step: run `wifionice checkin` in a terminal or pass "
+                "--accept-terms --confirm (the portal login confirms the "
+                "WIFIonICE terms of use)",
+                code=ec.INPUT,
+            )
 
     client = PortalClient(
         cfg.base_url,
@@ -160,6 +217,7 @@ def _cmd_checkin(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
             "state_path": str(cfg.state_path),
         },
         json_mode=json_mode,
+        human=[f"Checkin erfolgreich (Methode: {result['method']})."],
     )
     return ec.OK
 
