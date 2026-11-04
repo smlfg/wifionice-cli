@@ -57,10 +57,20 @@ def emit_error(
             print(str(err) or "unexpected error", file=sys.stderr)
 
 
+def wants_json(argv: list[str]) -> bool:
+    """JSON is requested explicitly or whenever stdout is not a terminal."""
+    if "--json" in argv:
+        return True
+    try:
+        return not sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return True
+
+
 def run_main(main_fn, argv: list[str] | None = None) -> int:
     """Wrap ``main_fn(argv) -> int`` with CliError / KeyboardInterrupt / EOF handling."""
     arglist = argv if argv is not None else sys.argv[1:]
-    json_mode = "--json" in arglist
+    json_mode = wants_json(arglist)
     try:
         return main_fn(arglist if argv is not None else None)
     except CliError as e:

@@ -161,9 +161,8 @@ def _run_pty(server, workdir: Path, args: list[str], answer: str, timeout: float
 def test_ux_session_status():
     with FAKE_SERVER.FakeServer(SPEC, ROOT) as server:
         workdir = _workdir()
-        result = _run(server, workdir, _session_args("status"))
-    text = result.stdout + result.stderr
-    assert result.returncode == 0, text
+        code, text = _run_pty(server, workdir, _session_args("status"), answer="")
+    assert code == 0, text
     assert re.search(r"Portal: http://127\.0\.0\.1:\d+", text), text
     assert "Erreichbar: ja" in text, text
     assert "Session: nicht angemeldet" in text, text
@@ -172,9 +171,8 @@ def test_ux_session_status():
 def test_ux_session_speed():
     with FAKE_SERVER.FakeServer(SPEC, ROOT) as server:
         workdir = _workdir()
-        result = _run(server, workdir, _session_args("speed"))
-    text = result.stdout + result.stderr
-    assert result.returncode == 0, text
+        code, text = _run_pty(server, workdir, _session_args("speed"), answer="")
+    assert code == 0, text
     assert "Zuggeschwindigkeit: 109 km/h" in text, text
     assert "Servicelevel: AVAILABLE_SERVICE" in text, text
     assert "Verbindung: ja" in text, text

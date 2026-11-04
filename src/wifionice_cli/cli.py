@@ -9,7 +9,7 @@ from pathlib import Path
 from wifionice_cli import __version__
 from wifionice_cli import exit_codes as ec
 from wifionice_cli.config import resolve_config
-from wifionice_cli.errors import ArgumentParser, CliError, run_main
+from wifionice_cli.errors import ArgumentParser, CliError, run_main, wants_json
 from wifionice_cli.json_util import dumps
 from wifionice_cli.portal import PortalClient
 from wifionice_cli.state import load_state, save_state
@@ -17,13 +17,20 @@ from wifionice_cli.url_util import join_preserve_base_path
 from wifionice_cli.validation import reject_nan_in_json_tree, require_finite_number
 
 
-def _emit(data: dict, *, json_mode: bool) -> None:
+def _emit(data: dict, *, json_mode: bool, human: list[str] | None = None) -> None:
     reject_nan_in_json_tree(data)
     if json_mode:
         sys.stdout.write(dumps({"ok": True, **data}) + "\n")
-    else:
-        for key, value in data.items():
-            print(f"{key}: {value}")
+        return
+    lines = human if human is not None else [f"{key}: {value}" for key, value in data.items()]
+    for line in lines:
+        print(line)
+
+
+def _ja_nein(value: object) -> str:
+    if value is None:
+        return "unbekannt"
+    return "ja" if value else "nein"
 
 
 def build_parser(json_mode: bool) -> ArgumentParser:
@@ -181,7 +188,12 @@ def _cmd_status(args, cfg, *, json_mode: bool) -> int:
             "checked_in_at": local.get("checked_in_at"),
             "method": local.get("method"),
         }
-    _emit(out, json_mode=json_mode)
+    human = [
+        f"Portal: {cfg.base_url}",
+        "Erreichbar: ja",
+        f"Session: {'angemeldet' if info.authenticated else 'nicht angemeldet'}",
+    ]
+    _emit(out, json_mode=json_mode, human=human)
     return ec.OK
 
 
@@ -215,7 +227,13 @@ def _cmd_speed(args, cfg, *, json_mode: bool) -> int:
         "connection": payload.get("connection"),
         "note": "train speed from the onboard ICE portal, not a bandwidth measurement",
     }
-    _emit(out, json_mode=json_mode)
+    speed_text = str(int(speed)) if speed.is_integer() else f"{speed:g}"
+    human = [
+        f"Zuggeschwindigkeit: {speed_text} km/h",
+        f"Servicelevel: {payload.get('servicelevel') or 'unbekannt'}",
+        f"Verbindung: {_ja_nein(payload.get('connection'))}",
+    ]
+    _emit(out, json_mode=json_mode, human=human)
     return ec.OK
 
 
@@ -295,7 +313,7 @@ def _cmd_logout(args, cfg, *, json_mode: bool, dry_run: bool) -> int:
 
 def _main(argv: list[str] | None = None) -> int:
     args_list = argv if argv is not None else sys.argv[1:]
-    json_mode = "--json" in args_list
+    json_mode = wants_json(args_list)
     parser = build_parser(json_mode)
     args = parser.parse_args(args_list)
     json_mode = args.json or json_mode

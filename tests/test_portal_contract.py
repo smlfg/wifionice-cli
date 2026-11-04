@@ -12,6 +12,7 @@ import pytest
 
 from wifionice_cli import exit_codes as ec
 from fake_server import dead_url, start_fake_portal
+from pty_util import run_pty
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -324,8 +325,22 @@ def test_unknown_command_is_input(tmp_path: Path):
     assert proc.returncode == ec.INPUT
 
 
-def test_human_error_message_on_stderr(tmp_path: Path):
+def test_error_message_is_json_when_piped(tmp_path: Path):
     proc = run_cli(tmp_path, "status", base_url=dead_url())
     assert proc.returncode == ec.NETWORK
-    assert proc.stdout == ""
-    assert "cannot reach" in proc.stderr
+    assert one_json(proc)["error"]["code"] == ec.NETWORK
+
+
+def test_human_error_message_on_stderr(tmp_path: Path):
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["WIFIONICE_CONFIG"] = str(tmp_path / "no-config.json")
+    env["WIFIONICE_STATE"] = str(tmp_path / "session.json")
+    env["WIFIONICE_BASE_URL"] = dead_url()
+    code, text = run_pty(
+        [sys.executable, "-m", "wifionice_cli", "status"],
+        env=env,
+        cwd=ROOT,
+    )
+    assert code == ec.NETWORK
+    assert "cannot reach" in text
