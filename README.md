@@ -10,10 +10,13 @@ Empfohlen: `pipx install git+https://github.com/smlfg/wifionice-cli` (landet aut
 Alternative: `pip install --user git+https://github.com/smlfg/wifionice-cli` — wird der Befehl danach nicht gefunden, pipx nutzen oder das bin-Verzeichnis des venv in den PATH aufnehmen.
 
 ```bash
-wifionice checkin --accept-terms   # im Zug ins Portal einloggen (AGB bestätigen)
-wifionice status                   # Portal erreichbar? Session aktiv?
-wifionice speed                    # Zuggeschwindigkeit aus dem ICE-Portal
+pipx install git+https://github.com/smlfg/wifionice-cli
+wifionice status
+wifionice speed
+wifionice checkin
 ```
+
+Im Terminal zeigt `wifionice checkin` zuerst Portal-URL und AGB-Hinweis und fragt dann `Checkin verbindlich? [j/N]`; erst nach `j` wird ein Request gesendet. Für nicht-interaktive Aufrufe bleiben `--accept-terms` und `--confirm`/`--yes` vorgesehen.
 
 Diese Commands mit allen Optionen: `wifionice --help` bzw. `wifionice checkin --help` (weitere: status, speed, logout, config, version).
 
