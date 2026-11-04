@@ -135,3 +135,28 @@ def test_nan_timeout_status_json_no_traceback(tmp_path: Path):
     payload = json.loads(proc.stdout)
     assert payload["ok"] is False
     assert payload["error"]["code"] == ec.INPUT
+
+
+def test_help_and_version_exit_ok(tmp_path: Path):
+    help_proc = run_cli(tmp_path, "--help")
+    assert help_proc.returncode == ec.OK
+    assert "checkin" in help_proc.stdout
+    version_proc = run_cli(tmp_path, "version")
+    assert version_proc.returncode == ec.OK
+
+
+def test_checkin_eof_at_prompt_is_abort_without_traceback(tmp_path: Path):
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT / "src")
+    env["WIFIONICE_CONFIG"] = str(tmp_path / "no-config.json")
+    env["WIFIONICE_STATE"] = str(tmp_path / "session.json")
+    env["WIFIONICE_BASE_URL"] = "http://127.0.0.1:1"
+    code, text = run_pty(
+        [sys.executable, "-m", "wifionice_cli", "checkin"],
+        env=env,
+        cwd=ROOT,
+        marker="[j/N]",
+    )
+    assert code == ec.ABORT
+    assert "Traceback" not in text
+    assert "Checkin verbindlich? [j/N]" in text

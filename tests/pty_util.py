@@ -16,6 +16,8 @@ def run_pty(
     env: dict[str, str],
     cwd: Path | str,
     timeout: float = 20.0,
+    marker: str | None = None,
+    response: str | None = None,
 ) -> tuple[int, str]:
     master, slave = pty.openpty()
     proc = subprocess.Popen(
@@ -29,6 +31,7 @@ def run_pty(
     )
     os.close(slave)
     output = b""
+    answered = False
     deadline = time.monotonic() + timeout
     try:
         while True:
@@ -49,6 +52,10 @@ def run_pty(
                 except OSError:
                     chunk = b""
                 output += chunk
+                if marker and not answered and marker.encode() in output:
+                    payload = b"\x04" if response is None else response.encode()
+                    os.write(master, payload)
+                    answered = True
             if time.monotonic() > deadline:
                 proc.kill()
                 proc.wait(timeout=5)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -11,8 +12,25 @@ from pathlib import Path
 import pytest
 
 from wifionice_cli import exit_codes as ec
-from fake_server import dead_url, start_fake_portal
 from pty_util import run_pty
+
+
+def _load_fake_server():
+    name = "contract_fake_server"
+    if name in sys.modules:
+        return sys.modules[name]
+    path = Path(__file__).resolve().parent / "fake_server.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+_FAKE = _load_fake_server()
+dead_url = _FAKE.dead_url
+start_fake_portal = _FAKE.start_fake_portal
 
 ROOT = Path(__file__).resolve().parents[1]
 
