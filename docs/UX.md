@@ -7,7 +7,9 @@ vor jedem Request nach. Zugangsdaten werden weder benötigt noch gespeichert.
 Die Basis-URL des Captive Portals ist über `WIFIONICE_BASE_URL` überschreibbar
 (Default `https://wifi.bahn.de`, für den Fake-Server in Tests). `speed` liest
 separat vom Onboard-ICE-Portal, dessen URL über `WIFIONICE_ICEPORTAL_URL`
-gesetzt wird (Default `https://iceportal.de`). Credential-Env gibt es nicht.
+gesetzt wird (Default `https://iceportal.de`). Ist nur `WIFIONICE_BASE_URL`
+gesetzt, gilt sie auch für das ICE-Portal; so testet das UX-Gate alle Routen
+über `base_url_env`. Credential-Env gibt es nicht.
 
 ```ux-meta
 {"tool": "wifionice",

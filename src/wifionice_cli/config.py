@@ -107,6 +107,11 @@ def resolve_config(
     elif file_data.get("iceportal_url"):
         iceportal_url = str(file_data["iceportal_url"])
         sources["iceportal_url"] = "file"
+    elif environ.get(ENV_BASE_URL):
+        # A base_url override (for proxies or the offline fake server) also
+        # covers the onboard portal unless ICEPORTAL_URL says otherwise.
+        iceportal_url = str(environ[ENV_BASE_URL])
+        sources["iceportal_url"] = "env(base_url)"
     else:
         iceportal_url = DEFAULT_ICEPORTAL_URL
         sources["iceportal_url"] = "default"

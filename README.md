@@ -93,7 +93,7 @@ Präzedenz: Umgebungsvariablen > Konfigurationsdatei (`~/.config/wifionice/confi
 | Variable | Default | Zweck |
 |----------|---------|-------|
 | `WIFIONICE_BASE_URL` | `https://wifi.bahn.de` | Basis-URL des Captive Portals (absolut, Schema `http`/`https`) |
-| `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed` |
+| `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed`; ist nur `WIFIONICE_BASE_URL` gesetzt, gilt sie auch hier (Fake-Server) |
 | `WIFIONICE_STATE` | `~/.local/state/wifionice/session.json` | Pfad des lokalen Session-States |
 | `WIFIONICE_TIMEOUT` | `5` | HTTP-Timeout in Sekunden |
 | `WIFIONICE_RETRIES` | `2` | Anzahl HTTP-Versuche bei Transportfehler oder HTTP 5xx (z. B. kurzer Netzabriss im Zug) |

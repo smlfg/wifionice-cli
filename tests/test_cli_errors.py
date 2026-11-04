@@ -143,6 +143,9 @@ def test_help_and_version_exit_ok(tmp_path: Path):
     assert "checkin" in help_proc.stdout
     version_proc = run_cli(tmp_path, "version")
     assert version_proc.returncode == ec.OK
+    global_version_proc = run_cli(tmp_path, "--version")
+    assert global_version_proc.returncode == ec.OK
+    assert "0.1.0" in global_version_proc.stdout
 
 
 def test_checkin_eof_at_prompt_is_abort_without_traceback(tmp_path: Path):

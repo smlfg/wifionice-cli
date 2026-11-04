@@ -36,6 +36,7 @@ def _ja_nein(value: object) -> str:
 def build_parser(json_mode: bool) -> ArgumentParser:
     parser = ArgumentParser(prog="wifionice", description=__doc__)
     parser.set_json_mode(json_mode)
+    parser.add_argument("--version", action="version", version=__version__)
     global_flags = ArgumentParser(add_help=False)
     global_flags.add_argument("--json", action="store_true", help="machine-readable JSON on stdout")
     global_flags.add_argument(

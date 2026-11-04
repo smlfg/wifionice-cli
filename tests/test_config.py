@@ -110,3 +110,20 @@ def test_broken_config_file_is_parse_error(tmp_path: Path, monkeypatch):
         assert e.code == ec.PARSE
     else:
         raise AssertionError("expected CliError")
+
+
+def test_base_url_env_also_covers_iceportal_when_unset(tmp_path: Path, monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv(ENV_BASE_URL, "http://127.0.0.1:9999")
+    cfg = resolve_config(config_path=tmp_path / "missing.json")
+    assert cfg.iceportal_url == "http://127.0.0.1:9999"
+    assert cfg.sources["iceportal_url"] == "env(base_url)"
+
+
+def test_explicit_iceportal_env_wins_over_base_url_fallback(tmp_path: Path, monkeypatch):
+    _clear(monkeypatch)
+    monkeypatch.setenv(ENV_BASE_URL, "http://127.0.0.1:9999")
+    monkeypatch.setenv(ENV_ICEPORTAL_URL, "http://127.0.0.1:8888")
+    cfg = resolve_config(config_path=tmp_path / "missing.json")
+    assert cfg.iceportal_url == "http://127.0.0.1:8888"
+    assert cfg.sources["iceportal_url"] == "env"

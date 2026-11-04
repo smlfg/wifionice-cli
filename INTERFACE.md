@@ -103,7 +103,7 @@ Exit-Code 3.
 | Variable | Default | Zweck |
 |---|---|---|
 | `WIFIONICE_BASE_URL` | `https://wifi.bahn.de` | Basis-URL des Captive Portals (`ux-meta.base_url_env`, für Fake-Server). Absolut, Schema `http`/`https`. |
-| `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed`. |
+| `WIFIONICE_ICEPORTAL_URL` | `https://iceportal.de` | Onboard-ICE-Portal für `speed`; ohne diese Variable gilt eine gesetzte `WIFIONICE_BASE_URL` auch hier (Fake-Server). |
 | `WIFIONICE_STATE` | `~/.local/state/wifionice/session.json` | Pfad des lokalen Session-States. |
 | `WIFIONICE_TIMEOUT` | `5` | HTTP-Timeout in Sekunden. |
 | `WIFIONICE_RETRIES` | `2` | HTTP-Versuche bei Transportfehler oder HTTP 5xx (mindestens 1). |
