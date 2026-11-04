@@ -16,7 +16,7 @@ wifionice speed
 wifionice checkin
 ```
 
-Im Terminal zeigt `wifionice checkin` zuerst Portal-URL und AGB-Hinweis und fragt dann `Checkin verbindlich? [j/N]`; erst nach `j` wird ein Request gesendet. Für nicht-interaktive Aufrufe bleiben `--accept-terms` und `--confirm`/`--yes` vorgesehen.
+Im Terminal zeigt `wifionice checkin` zuerst Portal-URL und AGB-Hinweis und fragt dann `Checkin verbindlich? [j/N]`; erst nach `j` wird ein Request gesendet, `N`/Enter bricht ohne Request ab. `--accept-terms` bleibt die explizite AGB-Zustimmung; `--confirm`/`--yes` sind nur für nicht-interaktive Agenten. Ohne TTY sendet die CLI nur mit `--accept-terms` und `--confirm`/`--yes`, sonst bricht sie vor jedem Request ab.
 
 Diese Commands mit allen Optionen: `wifionice --help` bzw. `wifionice checkin --help` (weitere: status, speed, logout, config, version).
 
@@ -31,11 +31,12 @@ Alternativ: `pip install -e ".[dev]"`.
 
 ## Kommandos
 
-Globale Flags: `--json` (genau ein JSON-Objekt auf stdout, auch im Fehlerfall), `--dry-run` (keine Netzwerk-Requests, keine Schreibzugriffe).
+Globale Flags: `--json` (genau ein JSON-Objekt auf stdout, auch im Fehlerfall; ohne Flag wird automatisch JSON ausgegeben, wenn stdout kein TTY ist), `--dry-run` (keine Netzwerk-Requests, keine Schreibzugriffe; `status` und `speed` lehnen das mit Exit-Code 1 ab).
 
 | Kommando | Zweck |
 |----------|-------|
-| `wifionice checkin --accept-terms` | Portal-Login inkl. Bestätigung der Nutzungsbedingungen; speichert lokalen Session-State |
+| `wifionice checkin` | Portal-Login inkl. AGB; fragt im TTY `Checkin verbindlich? [j/N]` und speichert den lokalen Session-State |
+| `wifionice checkin --accept-terms --confirm` | nicht-interaktiver Checkin für Agenten (AGB-Zustimmung plus Bestätigung); ohne TTY sind beide Flags nötig |
 | `wifionice checkin --dry-run` | zeigt nur, was gesendet würde (kein Netzwerk) |
 | `wifionice status` | Portal erreichbar? Session aktiv? (CNA-API, Legacy-Fallback) |
 | `wifionice speed` | Zuggeschwindigkeit in km/h aus dem Onboard-ICE-Portal (kein Bandbreitentest; nur im Zug erreichbar) |
@@ -47,7 +48,8 @@ Beispiele:
 
 ```bash
 wifionice status --json
-wifionice checkin --accept-terms
+wifionice checkin
+wifionice checkin --accept-terms --confirm --json
 wifionice checkin --accept-terms --dry-run --json
 wifionice speed --json
 wifionice logout --dry-run
@@ -55,7 +57,7 @@ wifionice logout --dry-run
 
 ### checkin und AGB
 
-Der Portal-Login bestätigt die Nutzungsbedingungen des WIFIonICE-Portals. Deshalb verlangt ein echter Checkin explizit `--accept-terms` (sonst Exit-Code 1). `--dry-run` zeigt den geplanten Request-Ablauf, ohne etwas zu senden.
+Der Portal-Login bestätigt die Nutzungsbedingungen des WIFIonICE-Portals. Deshalb zeigt ein echter Checkin zuerst Portal-URL und AGB-Hinweis und fragt im TTY `Checkin verbindlich? [j/N]` (Default Nein). `N`/Enter sendet nichts; erst `j` sendet alle Requests. Ohne TTY sendet die CLI nur mit `--accept-terms` und `--confirm`/`--yes`, sonst bricht sie vor jedem Request mit Exit-Code 1 ab. `--dry-run` zeigt den geplanten Request-Ablauf, ohne etwas zu senden.
 
 ## Exit-Codes
 
@@ -132,7 +134,7 @@ Stand 2026-10-21, Heimnetz, **ohne** Zug-WLAN; read-only (kein echter Checkin, k
 | `wifionice speed --json` | Exit 4, Meldung „empty body … only available on board“ | kein erfundener km/h-Wert |
 | `wifionice status --json` | Exit 3 bei nicht erreichbarem Portal | erwartbar ohne Zug-WLAN |
 
-**Im Zug (Checkliste Issue #3):** CNA-Checkin mit `--accept-terms`, `status` gegen `/cna/wifi/user_info`, `speed` mit numerischem `train_speed_kmh`; bei kurzem Abbruch hilft der Default `WIFIONICE_RETRIES=2` (zweiter Versuch nach Transportfehler oder HTTP 5xx). Offline abgedeckt in `tests/test_portal_contract.py` (`test_speed_empty_body_off_train`, `test_status_retries_transient_http_503`).
+**Im Zug (Checkliste Issue #3):** CNA-Checkin interaktiv mit `[j/N]` (bzw. `--accept-terms --confirm` für Agenten), `status` gegen `/cna/wifi/user_info`, `speed` mit numerischem `train_speed_kmh`; bei kurzem Abbruch hilft der Default `WIFIONICE_RETRIES=2` (zweiter Versuch nach Transportfehler oder HTTP 5xx). Offline abgedeckt in `tests/test_portal_contract.py` (`test_speed_empty_body_off_train`, `test_status_retries_transient_http_503`).
 
 Fazit: `checkin` und `status` sind nur im WIFIonICE-Netz vollständig testbar. `speed` liefert erst im Zug strukturierte Daten — außerhalb bricht die CLI mit Exit-Code 4 ab und erklärt den leeren ICE-Portal-Body, statt Werte zu erfinden.
 
