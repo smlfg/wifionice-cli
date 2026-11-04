@@ -1,0 +1,9 @@
+{
+  "connection": true,
+  "servicelevel": "AVAILABLE_SERVICE",
+  "speed": 109,
+  "gpsStatus": "VALID",
+  "latitude": 52.5161765,
+  "longitude": 13.2536047,
+  "wagonClass": "FIRST"
+}

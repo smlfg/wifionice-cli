@@ -1,0 +1,16 @@
+<!doctype html>
+<!-- Synthetische Login-Seite: live ausserhalb des Zugnetzes nicht erreichbar. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>WIFIonICE Login</title>
+</head>
+<body>
+  <h1>WIFIonICE</h1>
+  <p>Bitte die Nutzungsbedingungen akzeptieren und die Verbindung starten.</p>
+  <form id="accept" method="post" action="/de/">
+    <input type="hidden" name="CSRFToken" value="synthetic-csrf-token">
+    <input type="submit" name="login" value="true">
+  </form>
+</body>
+</html>
